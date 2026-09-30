@@ -1,0 +1,7 @@
+{
+  "name": "Rive QR Studio — Branded QR Codes & SharePoint Masking",
+  "description": "Custom QR code generator with logo & color customization, plus smart branded short links that mask SharePoint URLs with custom domains like rive.ai.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
