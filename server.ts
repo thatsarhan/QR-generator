@@ -112,6 +112,11 @@ app.delete('/api/links/:id', (req, res) => {
   }
 });
 
+// REDIRECT ROUTE: /pdf (Direct PDF redirect)
+app.get('/pdf', (req, res) => {
+  res.redirect(302, 'https://rivelabs-my.sharepoint.com/:b:/g/personal/arhan_rive_ai/EQvSampleSharePointDocument');
+});
+
 // REDIRECT ROUTE: /r/:slug (HTTP 302 redirect to destinationUrl with scan counter increment)
 app.get('/r/:slug', (req, res) => {
   const { slug } = req.params;

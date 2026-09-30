@@ -1,0 +1,9 @@
+{
+  "redirects": [
+    {
+      "source": "/pdf",
+      "destination": "https://rivelabs-my.sharepoint.com/:b:/g/personal/arhan_rive_ai/EQvSampleSharePointDocument",
+      "permanent": false
+    }
+  ]
+}

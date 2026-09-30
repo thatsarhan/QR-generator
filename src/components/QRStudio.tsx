@@ -1,24 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { QRConfig, PatternStyle, EyeStyle, ErrorCorrectionLevel, QRTemplate, ShortLink } from '../types';
+import { QRConfig, PatternStyle, EyeStyle, ErrorCorrectionLevel, QRTemplate } from '../types';
 import { generateQRCodeCanvas } from '../utils/qrHelper';
 import { 
   Download, Sparkles, Globe, Upload, Trash2, Sliders, Palette, 
-  Image as ImageIcon, CheckCircle2, Bookmark, Check, AlertTriangle, ExternalLink, Code
+  Image as ImageIcon, CheckCircle2, Bookmark, Check, AlertTriangle, ExternalLink
 } from 'lucide-react';
 
 interface QRStudioProps {
   initialData?: string;
   initialTitle?: string;
-  shortLinks: ShortLink[];
-  onAddShortLink: (link: Omit<ShortLink, 'id' | 'scanCount' | 'createdAt' | 'updatedAt'>) => Promise<boolean>;
 }
-
-const PRESET_DOMAINS = [
-  { name: 'rivelabs.ai', value: 'https://rivelabs.ai' },
-  { name: 'rivelabs.com', value: 'https://rivelabs.com' },
-  { name: 'go.rive.ai', value: 'https://go.rive.ai' },
-  { name: 'Custom Local', value: window.location.origin },
-];
 
 const PRESET_COLORS = [
   { name: 'Rive Green', value: '#0E3415' },
@@ -38,36 +29,37 @@ const PRESET_BG_COLORS = [
   { name: 'Dark Slate', value: '#111827' },
 ];
 
+// Crisp Rive Logo SVG Data URL as default
+const RIVE_LOGO_SVG = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><rect width="100" height="100" rx="22" fill="%230E3415"/><path d="M26 68V36c0-4 3-7 7-7h4c3 0 5 2 6 5l5 12 5-12c1-3 3-5 6-5h4c4 0 7 3 7 7v32h-8V42l-5 12h-4l-5-12v26h-8z" fill="%23FFF"/><path d="M24 72h52v6H24z" fill="%23FFF"/></svg>`;
+
+const RiveBrandIconSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><rect width="200" height="200" rx="40" fill="%230E3415"/><path d="M45 135V75c0-8 6-15 14-15h9c6 0 12 4 14 10l12 30 12-30c2-6 8-10 14-10h9c8 0 14 7 14 15v60h-16V85l-11 28h-8l-11-28v50H45z" fill="%23FFF"/></svg>`;
+
 const PRESET_LOGOS = [
+  { name: 'Rive Brand', url: RiveBrandIconSvg },
   { name: 'PDF Document', url: 'https://api.iconify.design/lucide:file-text.svg?color=%230E3415' },
-  { name: 'Rive Leaf', url: 'https://api.iconify.design/lucide:leaf.svg?color=%230E3415' },
   { name: 'Globe / Web', url: 'https://api.iconify.design/lucide:globe.svg?color=%230E3415' },
   { name: 'Star Sparkle', url: 'https://api.iconify.design/lucide:sparkles.svg?color=%230E3415' },
 ];
 
-export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, shortLinks, onAddShortLink }) => {
-  const [shortDomain, setShortDomain] = useState<string>('https://rivelabs.ai');
-  const [slug, setSlug] = useState<string>('brochure');
+export const QRStudio: React.FC<QRStudioProps> = () => {
   const [destinationUrl, setDestinationUrl] = useState<string>('https://rivelabs-my.sharepoint.com/:b:/g/personal/arhan_rive_ai/EQvSampleSharePointDocument');
+  const [qrUrl, setQrUrl] = useState<string>('https://rive-brochure.vercel.app/pdf');
 
   const [config, setConfig] = useState<QRConfig>(() => {
-    const saved = localStorage.getItem('rive_qr_config_v4');
+    const saved = localStorage.getItem('rive_qr_config_v6');
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        if (initialData) parsed.data = initialData;
-        if (initialTitle) parsed.name = initialTitle;
-        return parsed;
+        return JSON.parse(saved);
       } catch (e) {
         // fallback
       }
     }
     return {
       id: '1',
-      name: initialTitle || 'Summer Brochure QR',
+      name: 'Rive Brochure QR',
       type: 'url',
-      data: `https://rivelabs.ai/brochure`,
-      encodeDirectly: false,
+      data: 'https://rive-brochure.vercel.app/pdf',
+      encodeDirectly: true,
       patternColor: '#0E3415',
       eyeOuterColor: '#0E3415',
       eyeInnerColor: '#0E3415',
@@ -76,8 +68,8 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
       isTransparentBg: false,
       patternStyle: 'rounded',
       eyeStyle: 'rounded',
-      errorCorrectionLevel: 'M',
-      logoUrl: PRESET_LOGOS[0].url,
+      errorCorrectionLevel: 'H',
+      logoUrl: RiveBrandIconSvg,
       logoSize: 24,
       logoBg: true,
       logoRound: true,
@@ -98,15 +90,12 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
   const [savedMsg, setSavedMsg] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Update QR payload whenever shortDomain or slug changes
   useEffect(() => {
-    const cleanSlug = slug.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '').substring(0, 30);
-    const payload = `${shortDomain}/${cleanSlug || 'brochure'}`;
-    setConfig((prev) => ({ ...prev, data: payload }));
-  }, [shortDomain, slug]);
+    setConfig((prev) => ({ ...prev, data: qrUrl }));
+  }, [qrUrl]);
 
   useEffect(() => {
-    localStorage.setItem('rive_qr_config_v4', JSON.stringify(config));
+    localStorage.setItem('rive_qr_config_v6', JSON.stringify(config));
   }, [config]);
 
   useEffect(() => {
@@ -114,25 +103,10 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
   }, [templates]);
 
   useEffect(() => {
-    if (initialData) {
-      setConfig((prev) => ({
-        ...prev,
-        data: initialData,
-        name: initialTitle || prev.name,
-      }));
-    }
-  }, [initialData, initialTitle]);
-
-  useEffect(() => {
     if (canvasRef.current) {
       generateQRCodeCanvas(canvasRef.current, config, exportSize);
     }
   }, [config, exportSize]);
-
-  // Validation rules: must not contain "sharepoint.com" or "http" more than once
-  const hasSharePoint = config.data.includes('sharepoint.com');
-  const httpCount = (config.data.match(/http/g) || []).length;
-  const isInvalidPayload = hasSharePoint || httpCount > 1;
 
   const handleSaveTemplate = () => {
     if (!templateName.trim()) return;
@@ -161,11 +135,11 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
   };
 
   const handleDownloadPNG = () => {
-    if (isInvalidPayload || !canvasRef.current) return;
+    if (!canvasRef.current) return;
     const url = canvasRef.current.toDataURL('image/png');
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${config.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${exportSize}px.png`;
+    a.download = `rive-brochure-qrcode-${exportSize}px.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -191,115 +165,65 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
       <div className="lg:col-span-7 space-y-6">
         <div className="glass-panel rounded-[32px] p-6 md:p-8 border border-stone-200/80 space-y-8 shadow-sm">
           
-          {/* Section 1: Domain & Slug Setup */}
+          {/* Section 1: URLs & SharePoint Destination */}
           <div className="space-y-4 bg-gradient-to-br from-white via-stone-50/50 to-emerald-50/20 p-6 rounded-[24px] border border-stone-200/80">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-display font-bold text-[#0E3415] flex items-center gap-2">
                 <Globe className="w-5 h-5 text-[#0E3415]" />
-                1. Short Domain & Slug
+                1. Destination URL & QR Code Link
               </h3>
-              <span className="text-xs bg-[#0E3415]/10 text-[#0E3415] font-semibold px-2.5 py-0.5 rounded-full">
-                Shows rivelabs.ai
+              <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full">
+                Camera shows rive-brochure.vercel.app
               </span>
             </div>
             <p className="text-xs text-stone-600 leading-relaxed">
-              Phone cameras display the root domain + extension. By encoding only <code className="font-mono text-[#0E3415]">{shortDomain}/{slug || 'brochure'}</code>, the SharePoint address never appears in the QR code at all.
+              Paste your SharePoint or PDF destination URL below. The QR code encodes your Vercel web address so scanners see your brand name.
             </p>
 
-            <div className="space-y-4 pt-2">
+            <div className="space-y-3 pt-1">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
-                  Brand Short Domain
-                </label>
-                <select
-                  value={shortDomain}
-                  onChange={(e) => setShortDomain(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-stone-200 text-xs font-mono bg-white focus:outline-none focus:ring-2 focus:ring-[#0E3415]"
-                >
-                  {PRESET_DOMAINS.map((dom) => (
-                    <option key={dom.value} value={dom.value}>
-                      {dom.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
-                  Required Slug (lowercase, a-z, 0-9, hyphens, max 30 chars)
-                </label>
-                <div className="flex items-center rounded-xl border border-stone-200 overflow-hidden bg-white focus-within:ring-2 focus-within:ring-[#0E3415]">
-                  <span className="pl-3.5 pr-1 text-xs text-stone-400 font-mono">{shortDomain}/</span>
-                  <input
-                    type="text"
-                    maxLength={30}
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ''))}
-                    placeholder="brochure"
-                    className="w-full py-2.5 pr-4 bg-transparent text-sm focus:outline-none font-mono font-bold text-stone-900"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
-                  SharePoint Destination URL (for your redirect setup)
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+                  SharePoint Destination URL (Paste here)
                 </label>
                 <input
                   type="text"
                   value={destinationUrl}
                   onChange={(e) => setDestinationUrl(e.target.value)}
                   placeholder="https://rivelabs-my.sharepoint.com/:b:/g/personal/..."
-                  className="w-full px-4 py-2.5 rounded-xl border border-stone-200 text-xs font-mono bg-white focus:outline-none focus:ring-2 focus:ring-[#0E3415]"
+                  className="w-full px-4 py-3 rounded-2xl border border-stone-200 text-xs font-mono bg-white focus:outline-none focus:ring-2 focus:ring-[#0E3415]"
                 />
               </div>
 
-              {shortLinks.length > 0 && (
-                <div>
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
-                    Or Pick from My Short Links
-                  </label>
-                  <select
-                    onChange={(e) => {
-                      if (!e.target.value) return;
-                      const found = shortLinks.find((l) => l.slug === e.target.value);
-                      if (found) {
-                        setSlug(found.slug);
-                        setDestinationUrl(found.destinationUrl);
-                      }
-                    }}
-                    className="w-full px-4 py-2.5 rounded-xl border border-stone-200 text-xs font-mono bg-white focus:outline-none focus:ring-2 focus:ring-[#0E3415]"
-                  >
-                    <option value="">-- Load from saved short links --</option>
-                    {shortLinks.map((l) => (
-                      <option key={l.id} value={l.slug}>
-                        {l.slug} → {l.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
+                  QR Code Encoded Link (Encoded in the dots)
+                </label>
+                <input
+                  type="text"
+                  value={qrUrl}
+                  onChange={(e) => setQrUrl(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl border border-stone-200 text-xs font-mono bg-stone-50 focus:outline-none focus:ring-2 focus:ring-[#0E3415] font-bold text-[#0E3415]"
+                />
+              </div>
             </div>
           </div>
 
-          {/* Section 2: Logo Customization */}
+          {/* Section 2: Brand Logo */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-display font-bold text-[#0E3415] flex items-center gap-2">
                 <ImageIcon className="w-5 h-5 text-[#0E3415]" />
                 2. Brand Logo & Error Correction
               </h3>
-              {config.logoUrl && (
-                <span className="text-xs bg-amber-50 text-amber-800 font-semibold px-2.5 py-0.5 rounded-full border border-amber-200">
-                  Error Correction Forced to [H]
-                </span>
-              )}
+              <span className="text-xs bg-amber-50 text-amber-800 font-semibold px-2.5 py-0.5 rounded-full border border-amber-200">
+                Error Correction [H] Active
+              </span>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
               <label className="px-5 py-2.5 rounded-full bg-[#0E3415] text-white font-semibold text-xs hover:bg-[#154c1f] transition-all cursor-pointer flex items-center gap-2 shadow-sm">
                 <Upload className="w-3.5 h-3.5 text-[#A8F2D3]" />
-                Upload Logo (PNG/JPG/SVG)
+                Upload Custom Logo
                 <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
               </label>
               {config.logoUrl && (
@@ -332,7 +256,7 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
             {config.logoUrl && (
               <div className="space-y-4 bg-stone-50/80 p-4 rounded-2xl border border-stone-200/60">
                 <div className="flex items-center justify-between text-xs font-medium text-stone-700">
-                  <span>Logo Size (Capped at 25% for scan reliability)</span>
+                  <span>Logo Size (Optimized for scan reliability)</span>
                   <span className="font-mono">{config.logoSize}%</span>
                 </div>
                 <input
@@ -435,40 +359,6 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
               </div>
             </div>
 
-            {/* Separate Corner Eye Colors if Unlinked */}
-            {!config.isEyesLinked && (
-              <div className="space-y-3 pt-2 bg-stone-50 p-4 rounded-2xl border border-stone-200 animate-in fade-in duration-200">
-                <div className="space-y-2">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600">
-                    Corner Eye Outer Frame Color
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={config.eyeOuterColor}
-                      onChange={(e) => setConfig((prev) => ({ ...prev, eyeOuterColor: e.target.value }))}
-                      className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent"
-                    />
-                    <span className="text-xs font-mono text-stone-600">{config.eyeOuterColor}</span>
-                  </div>
-                </div>
-                <div className="space-y-2 pt-2 border-t border-stone-200">
-                  <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600">
-                    Corner Eye Inner Dot Color
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      value={config.eyeInnerColor}
-                      onChange={(e) => setConfig((prev) => ({ ...prev, eyeInnerColor: e.target.value }))}
-                      className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent"
-                    />
-                    <span className="text-xs font-mono text-stone-600">{config.eyeInnerColor}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Background Color */}
             <div className="space-y-2 pt-2">
               <div className="flex items-center justify-between">
@@ -511,14 +401,6 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
                 </div>
               )}
             </div>
-
-            {/* Contrast Warning Check */}
-            {!config.isTransparentBg && config.backgroundColor === '#FFFFFF' && config.patternColor === '#FFFFFF' && (
-              <div className="p-3 bg-red-50 rounded-xl border border-red-200 flex items-center gap-2 text-xs text-red-700">
-                <AlertTriangle className="w-4 h-4 shrink-0" />
-                Warning: Foreground and background colors are both white. Low contrast prevents reliable scanning.
-              </div>
-            )}
           </div>
 
           <hr className="border-stone-200/60" />
@@ -573,29 +455,6 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
                 ))}
               </div>
             </div>
-
-            {/* Error Correction Level */}
-            <div className="space-y-2 pt-2">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600">
-                Error Correction Level
-              </label>
-              <div className="grid grid-cols-4 gap-2">
-                {(['L', 'M', 'Q', 'H'] as ErrorCorrectionLevel[]).map((lvl) => (
-                  <button
-                    key={lvl}
-                    disabled={Boolean(config.logoUrl)}
-                    onClick={() => setConfig((prev) => ({ ...prev, errorCorrectionLevel: lvl }))}
-                    className={`p-2.5 rounded-xl border text-xs font-semibold transition-all ${
-                      config.errorCorrectionLevel === lvl || config.logoUrl
-                        ? 'border-[#0E3415] bg-[#0E3415] text-white shadow-sm'
-                        : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'
-                    }`}
-                  >
-                    {lvl} {lvl === 'H' && '(High)'}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -606,7 +465,7 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
           <div className="flex items-center justify-between">
             <h3 className="font-display font-bold text-lg text-[#0E3415]">Live Preview</h3>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold">
-              <CheckCircle2 className="w-3.5 h-3.5" /> EC: {config.logoUrl ? 'H (Forced)' : config.errorCorrectionLevel}
+              <CheckCircle2 className="w-3.5 h-3.5" /> EC: High
             </span>
           </div>
 
@@ -615,34 +474,10 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
             <canvas ref={canvasRef} className="w-64 h-64 object-contain mx-auto rounded-xl" />
           </div>
 
-          {/* Encoded Payload & Validation Warning */}
           <div className="space-y-2">
-            <div className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Encoded Payload</div>
-            <div className="bg-stone-100 p-3 rounded-2xl font-mono text-xs text-stone-800 break-all select-all">
-              {config.data}
-            </div>
-
-            {isInvalidPayload ? (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 shrink-0" />
-                <span>Error: The payload contains SharePoint or multiple URLs. The SharePoint URL must never appear in the QR code.</span>
-              </div>
-            ) : (
-              <p className="text-[11px] text-emerald-700 font-medium pt-1">
-                📷 Camera will show <strong>{new URL(shortDomain).hostname}</strong> once the redirect is live on that domain.
-              </p>
-            )}
-          </div>
-
-          {/* Redirect Setup Panel */}
-          <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 text-left space-y-2">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-[#0E3415]">
-              <Code className="w-4 h-4 text-[#0E3415]" />
-              Redirect Setup (Cloudflare / Host Rule)
-            </div>
-            <div className="text-[11px] font-mono text-stone-600 bg-white p-2.5 rounded-xl border border-stone-200/80 space-y-1">
-              <div><strong>Source:</strong> {config.data}</div>
-              <div className="truncate"><strong>Destination (302):</strong> {destinationUrl}</div>
+            <div className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Camera Scan Preview</div>
+            <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl font-mono text-xs font-bold text-emerald-900">
+              rive-brochure.vercel.app
             </div>
           </div>
 
@@ -667,22 +502,17 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
 
             <div className="flex gap-2">
               <a
-                href={config.data}
+                href={qrUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="flex-1 py-3 rounded-2xl bg-white border border-stone-200 text-stone-800 font-semibold text-xs hover:bg-stone-50 transition-all flex items-center justify-center gap-1.5 shadow-sm"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                Test Short Link
+                Test Link
               </a>
               <button
-                disabled={isInvalidPayload}
                 onClick={handleDownloadPNG}
-                className={`flex-1 py-3 rounded-2xl font-bold text-xs transition-all shadow-md flex items-center justify-center gap-1.5 ${
-                  isInvalidPayload 
-                    ? 'bg-stone-200 text-stone-400 cursor-not-allowed' 
-                    : 'bg-[#0E3415] text-white hover:bg-[#154c1f]'
-                }`}
+                className="flex-1 py-3 rounded-2xl bg-[#0E3415] text-white font-bold text-xs hover:bg-[#154c1f] transition-all shadow-md flex items-center justify-center gap-1.5"
               >
                 <Download className="w-3.5 h-3.5 text-[#A8F2D3]" />
                 Download PNG
@@ -694,7 +524,7 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
               <div className="flex gap-2">
                 <input
                   type="text"
-                  placeholder="Template Name (e.g. Green Brand)"
+                  placeholder="Template Name"
                   value={templateName}
                   onChange={(e) => setTemplateName(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-stone-200 text-xs focus:outline-none focus:ring-2 focus:ring-[#0E3415]"
@@ -703,17 +533,17 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
                   onClick={handleSaveTemplate}
                   className="px-4 py-2 rounded-xl bg-stone-900 text-white font-bold text-xs hover:bg-stone-800 whitespace-nowrap"
                 >
-                  Save Template
+                  Save Style
                 </button>
               </div>
 
               {savedMsg && (
-                <div className="text-xs text-emerald-600 font-semibold">Template saved successfully!</div>
+                <div className="text-xs text-emerald-600 font-semibold">Style saved!</div>
               )}
 
               {templates.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  <span className="text-[11px] text-stone-500 w-full text-left font-semibold">Saved Templates:</span>
+                  <span className="text-[11px] text-stone-500 w-full text-left font-semibold">Saved Styles:</span>
                   {templates.map((tpl) => (
                     <button
                       key={tpl.id}
