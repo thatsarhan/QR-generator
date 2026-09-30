@@ -3,7 +3,7 @@ import { QRConfig, PatternStyle, EyeStyle, QRDataType } from '../types';
 import { generateQRCodeCanvas } from '../utils/qrHelper';
 import { 
   Download, Sparkles, Globe, Upload, Trash2, Sliders, Palette, 
-  Image as ImageIcon, CheckCircle2, Bookmark, Check
+  Image as ImageIcon, CheckCircle2, Bookmark, Check, Link2, Shield
 } from 'lucide-react';
 
 interface QRStudioProps {
@@ -54,9 +54,10 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle })
       id: '1',
       name: initialTitle || 'My Branded QR Code',
       type: 'url',
-      data: initialData || 'https://rive.ai/r/catalog-2026',
+      data: initialData || `${window.location.origin}/r/catalog-2026`,
       patternColor: '#2F2F35',
       eyeColor: '#2F2F35',
+      isEyeColorLinked: true,
       backgroundColor: '#FFFFFF',
       isTransparentBg: false,
       patternStyle: 'rounded',
@@ -69,29 +70,30 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle })
     };
   });
 
+  // Custom URL / SharePoint Masking inline state
+  const [sharepointUrl, setSharepointUrl] = useState('');
+  const [customSlug, setCustomSlug] = useState('catalog-2026');
   const [savedMessage, setSavedMessage] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Save to localStorage on every change
+  // Save to localStorage on change
   useEffect(() => {
     localStorage.setItem('rive_qr_config', JSON.stringify(config));
   }, [config]);
-
-  useEffect(() => {
-    if (initialData) {
-      setConfig((prev) => ({
-        ...prev,
-        data: initialData,
-        name: initialTitle || prev.name,
-      }));
-    }
-  }, [initialData, initialTitle]);
 
   useEffect(() => {
     if (canvasRef.current) {
       generateQRCodeCanvas(canvasRef.current, config, 500);
     }
   }, [config]);
+
+  // Update QR data when custom slug changes
+  const handleSlugChange = (newSlug: string) => {
+    const cleanSlug = newSlug.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+    setCustomSlug(cleanSlug);
+    const shortUrl = `${window.location.origin}/r/${cleanSlug || 'doc'}`;
+    setConfig((prev) => ({ ...prev, data: shortUrl }));
+  };
 
   const handleSaveTemplate = () => {
     setSavedMessage(true);
@@ -128,31 +130,64 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle })
       {/* Left Column: Customization Controls (7 cols) */}
       <div className="lg:col-span-7 space-y-6">
         <div className="glass-panel rounded-[32px] p-6 md:p-8 border border-stone-200/80 space-y-8 shadow-sm">
-          {/* Section 1: Content & Data */}
-          <div className="space-y-4">
+          
+          {/* Section 1: SharePoint Masking & Custom URL */}
+          <div className="space-y-4 bg-gradient-to-br from-white via-stone-50/50 to-pink-50/20 p-6 rounded-[24px] border border-stone-200/80">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-display font-bold text-stone-900 flex items-center gap-2">
-                <Globe className="w-5 h-5 text-[#F7A8C9]" />
-                1. Target URL or Content
+                <Shield className="w-5 h-5 text-[#F7A8C9]" />
+                SharePoint & Custom URL Masking
               </h3>
-              <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl text-xs font-semibold">
-                {(['url', 'text', 'wifi', 'email'] as QRDataType[]).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setConfig((prev) => ({ ...prev, type: t }))}
-                    className={`px-3 py-1.5 rounded-lg capitalize transition-all ${
-                      config.type === t ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-800'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
+              <span className="text-xs bg-emerald-50 text-emerald-700 font-semibold px-2.5 py-0.5 rounded-full">
+                Shows rive.ai on scan
+              </span>
+            </div>
+            <p className="text-xs text-stone-600 leading-relaxed">
+              Mask your long SharePoint URLs with a clean custom domain (<code className="font-mono text-[#F7A8C9]">rive.ai/r/...</code>) so phone camera scans never show <code className="font-mono text-stone-500">sharepoint.com</code>.
+            </p>
+
+            <div className="space-y-3 pt-2">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+                  1. SharePoint / Document Destination URL
+                </label>
+                <input
+                  type="text"
+                  value={sharepointUrl}
+                  onChange={(e) => setSharepointUrl(e.target.value)}
+                  placeholder="https://rivelabs-my.sharepoint.com/:b:/g/personal/..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-stone-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#F7A8C9]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+                  2. Custom URL Name (e.g. rive.ai/r/<strong>your-name</strong>)
+                </label>
+                <div className="flex items-center rounded-xl border border-stone-200 overflow-hidden bg-white focus-within:ring-2 focus-within:ring-[#F7A8C9]">
+                  <span className="pl-3.5 pr-1 text-xs text-stone-400 font-mono">rive.ai/r/</span>
+                  <input
+                    type="text"
+                    value={customSlug}
+                    onChange={(e) => handleSlugChange(e.target.value)}
+                    placeholder="summer-catalog"
+                    className="w-full py-2.5 pr-4 bg-transparent text-sm focus:outline-none font-mono font-bold text-stone-900"
+                  />
+                </div>
               </div>
             </div>
+          </div>
+
+          {/* Section 2: QR Name & Content */}
+          <div className="space-y-4">
+            <h3 className="text-xl font-display font-bold text-stone-900 flex items-center gap-2">
+              <Globe className="w-5 h-5 text-[#8ED8FF]" />
+              QR Code Details
+            </h3>
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
-                QR Code Name
+                QR Code Title Name
               </label>
               <input
                 type="text"
@@ -164,28 +199,24 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle })
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1.5">
-                Destination Link (SharePoint, Website, or Branded Short Link)
+                Encoded Payload URL (Auto-updated)
               </label>
-              <textarea
-                rows={2}
+              <input
+                type="text"
                 value={config.data}
                 onChange={(e) => setConfig((prev) => ({ ...prev, data: e.target.value }))}
-                placeholder="https://rive.ai/r/catalog-2026"
-                className="w-full px-4 py-3 rounded-2xl border border-stone-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#F7A8C9]"
+                className="w-full px-4 py-3 rounded-2xl border border-stone-200 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[#F7A8C9] bg-stone-50"
               />
-              <p className="text-[11px] text-stone-500 mt-1">
-                Tip: Use a branded short link (e.g. <code className="text-[#F7A8C9] font-bold">rive.ai/r/slug</code>) to mask long SharePoint URLs.
-              </p>
             </div>
           </div>
 
           <hr className="border-stone-200/60" />
 
-          {/* Section 2: Logo Customization */}
+          {/* Section 3: Logo Customization */}
           <div className="space-y-4">
             <h3 className="text-xl font-display font-bold text-stone-900 flex items-center gap-2">
-              <ImageIcon className="w-5 h-5 text-[#8ED8FF]" />
-              2. Add Brand Logo or Icon
+              <ImageIcon className="w-5 h-5 text-[#B8A7FF]" />
+              Add Brand Logo or Icon
             </h3>
 
             <div className="flex flex-wrap items-center gap-3">
@@ -262,12 +293,12 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle })
 
           <hr className="border-stone-200/60" />
 
-          {/* Section 3: Colors */}
+          {/* Section 4: Colors */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-display font-bold text-stone-900 flex items-center gap-2">
-                <Palette className="w-5 h-5 text-[#B8A7FF]" />
-                3. Colors & Contrast
+                <Palette className="w-5 h-5 text-[#FF8FA6]" />
+                Colors & Contrast
               </h3>
               <label className="flex items-center gap-1.5 text-xs text-stone-600 cursor-pointer">
                 <input
@@ -401,11 +432,11 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle })
 
           <hr className="border-stone-200/60" />
 
-          {/* Section 4: Pattern & Eye Styles */}
+          {/* Section 5: Pattern & Eye Styles */}
           <div className="space-y-6">
             <h3 className="text-xl font-display font-bold text-stone-900 flex items-center gap-2">
-              <Sliders className="w-5 h-5 text-[#FF8FA6]" />
-              4. Pattern & Eye Styles
+              <Sliders className="w-5 h-5 text-[#A8F2D3]" />
+              Pattern & Eye Styles
             </h3>
 
             {/* Pattern Style */}
@@ -492,16 +523,6 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle })
             >
               <Download className="w-4 h-4 text-[#F7A8C9]" />
               Download High-Res PNG
-            </button>
-            <button
-              onClick={() => {
-                const url = window.prompt('Enter export URL:', config.data);
-                if (url) setConfig((prev) => ({ ...prev, data: url }));
-              }}
-              className="w-full py-3 rounded-2xl bg-white border border-stone-200 text-stone-800 font-semibold text-sm hover:bg-stone-50 transition-all shadow-sm flex items-center justify-center gap-2"
-            >
-              <Sparkles className="w-4 h-4 text-[#8ED8FF]" />
-              Quick Edit Data URL
             </button>
           </div>
         </div>

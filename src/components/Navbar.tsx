@@ -1,9 +1,9 @@
 import React from 'react';
-import { QrCode, Link2, BookOpen, BarChart3, Sparkles } from 'lucide-react';
+import { QrCode, BarChart3, Sparkles } from 'lucide-react';
 
 interface NavbarProps {
-  activeTab: 'generator' | 'shortlinks' | 'guide' | 'analytics';
-  setActiveTab: (tab: 'generator' | 'shortlinks' | 'guide' | 'analytics') => void;
+  activeTab: 'generator' | 'analytics';
+  setActiveTab: (tab: 'generator' | 'analytics') => void;
   onNewQR: () => void;
 }
 
@@ -21,7 +21,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onNewQR
               <span className="font-display font-bold text-lg tracking-tight text-[#2F2F35]">Rive QR Studio</span>
               <span className="w-2 h-2 rounded-full bg-[#F7A8C9]"></span>
             </div>
-            <p className="text-[11px] text-stone-500 font-medium">Branded QR & SharePoint Masking</p>
+            <p className="text-[11px] text-stone-500 font-medium">Custom QR & SharePoint Masking</p>
           </div>
         </div>
 
@@ -29,47 +29,25 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onNewQR
         <nav className="hidden md:flex items-center gap-1 bg-stone-100/80 p-1 rounded-full border border-stone-200/60 text-sm font-medium">
           <button
             onClick={() => setActiveTab('generator')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-5 py-2 rounded-full transition-all whitespace-nowrap ${
               activeTab === 'generator'
                 ? 'bg-white text-[#2F2F35] shadow-sm font-semibold'
                 : 'text-stone-600 hover:text-[#2F2F35]'
             }`}
           >
             <QrCode className="w-4 h-4 text-[#F7A8C9]" />
-            QR Studio
-          </button>
-          <button
-            onClick={() => setActiveTab('shortlinks')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all whitespace-nowrap ${
-              activeTab === 'shortlinks'
-                ? 'bg-white text-[#2F2F35] shadow-sm font-semibold'
-                : 'text-stone-600 hover:text-[#2F2F35]'
-            }`}
-          >
-            <Link2 className="w-4 h-4 text-[#8ED8FF]" />
-            SharePoint Masking
-          </button>
-          <button
-            onClick={() => setActiveTab('guide')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all whitespace-nowrap ${
-              activeTab === 'guide'
-                ? 'bg-white text-[#2F2F35] shadow-sm font-semibold'
-                : 'text-stone-600 hover:text-[#2F2F35]'
-            }`}
-          >
-            <BookOpen className="w-4 h-4 text-[#B8A7FF]" />
-            Camera Fix Guide
+            QR Studio & Custom URL
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-5 py-2 rounded-full transition-all whitespace-nowrap ${
               activeTab === 'analytics'
                 ? 'bg-white text-[#2F2F35] shadow-sm font-semibold'
                 : 'text-stone-600 hover:text-[#2F2F35]'
             }`}
           >
             <BarChart3 className="w-4 h-4 text-[#FFC6A5]" />
-            Analytics
+            Scan Analytics
           </button>
         </nav>
 
@@ -80,7 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onNewQR
             className="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-[#2F2F35] rounded-full hover:bg-stone-800 transition-all shadow-sm whitespace-nowrap hover:scale-[1.02] active:scale-[0.98]"
           >
             <Sparkles className="w-3.5 h-3.5 text-[#F7A8C9]" />
-            Create Branded QR
+            New QR Code
           </button>
         </div>
       </div>
