@@ -2,9 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { QRConfig, PatternStyle, EyeStyle, QRDataType } from '../types';
 import { generateQRCodeCanvas } from '../utils/qrHelper';
 import { 
-  QrCode, Download, Copy, Check, Upload, Trash2, Sliders, Palette, 
-  Sparkles, Globe, FileText, Wifi, User, Mail, Phone, Image as ImageIcon,
-  CheckCircle2, RefreshCw
+  Download, Sparkles, Globe, Upload, Trash2, Sliders, Palette, 
+  Image as ImageIcon, CheckCircle2, Bookmark, Check
 } from 'lucide-react';
 
 interface QRStudioProps {
@@ -39,26 +38,44 @@ const PRESET_LOGOS = [
 ];
 
 export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle }) => {
-  const [config, setConfig] = useState<QRConfig>({
-    id: '1',
-    name: initialTitle || 'My Branded QR Code',
-    type: 'url',
-    data: initialData || 'https://rive.ai/r/catalog-2026',
-    patternColor: '#2F2F35',
-    eyeColor: '#2F2F35',
-    backgroundColor: '#FFFFFF',
-    isTransparentBg: false,
-    patternStyle: 'rounded',
-    eyeStyle: 'rounded',
-    logoUrl: PRESET_LOGOS[0].url,
-    logoSize: 26,
-    logoBg: true,
-    logoRound: true,
-    createdAt: Date.now(),
+  const [config, setConfig] = useState<QRConfig>(() => {
+    const saved = localStorage.getItem('rive_qr_config');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (initialData) parsed.data = initialData;
+        if (initialTitle) parsed.name = initialTitle;
+        return parsed;
+      } catch (e) {
+        // fallback
+      }
+    }
+    return {
+      id: '1',
+      name: initialTitle || 'My Branded QR Code',
+      type: 'url',
+      data: initialData || 'https://rive.ai/r/catalog-2026',
+      patternColor: '#2F2F35',
+      eyeColor: '#2F2F35',
+      backgroundColor: '#FFFFFF',
+      isTransparentBg: false,
+      patternStyle: 'rounded',
+      eyeStyle: 'rounded',
+      logoUrl: PRESET_LOGOS[0].url,
+      logoSize: 26,
+      logoBg: true,
+      logoRound: true,
+      createdAt: Date.now(),
+    };
   });
 
-  const [copied, setCopied] = useState(false);
+  const [savedMessage, setSavedMessage] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Save to localStorage on every change
+  useEffect(() => {
+    localStorage.setItem('rive_qr_config', JSON.stringify(config));
+  }, [config]);
 
   useEffect(() => {
     if (initialData) {
@@ -76,6 +93,11 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle })
     }
   }, [config]);
 
+  const handleSaveTemplate = () => {
+    setSavedMessage(true);
+    setTimeout(() => setSavedMessage(false), 2500);
+  };
+
   const handleDownloadPNG = () => {
     if (!canvasRef.current) return;
     const url = canvasRef.current.toDataURL('image/png');
@@ -85,11 +107,6 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle })
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-  };
-
-  const handleDownloadSVG = () => {
-    // Generate SVG fallback or export data URI
-    handleDownloadPNG();
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -172,7 +189,7 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle })
             </h3>
 
             <div className="flex flex-wrap items-center gap-3">
-              <label className="px-5 py-2.5 rounded-full bg-stone-900 text-white font-semibold text-xs hover:bg-stone-800 transition-all cursor-bezier flex items-center gap-2 shadow-sm">
+              <label className="px-5 py-2.5 rounded-full bg-stone-900 text-white font-semibold text-xs hover:bg-stone-800 transition-all cursor-pointer flex items-center gap-2 shadow-sm">
                 <Upload className="w-3.5 h-3.5 text-[#F7A8C9]" />
                 Upload Custom Logo
                 <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
@@ -247,21 +264,40 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle })
 
           {/* Section 3: Colors */}
           <div className="space-y-4">
-            <h3 className="text-xl font-display font-bold text-stone-900 flex items-center gap-2">
-              <Palette className="w-5 h-5 text-[#B8A7FF]" />
-              3. Colors & Contrast
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-display font-bold text-stone-900 flex items-center gap-2">
+                <Palette className="w-5 h-5 text-[#B8A7FF]" />
+                3. Colors & Contrast
+              </h3>
+              <label className="flex items-center gap-1.5 text-xs text-stone-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.isEyeColorLinked ?? true}
+                  onChange={(e) => setConfig((prev) => ({ 
+                    ...prev, 
+                    isEyeColorLinked: e.target.checked,
+                    eyeColor: e.target.checked ? prev.patternColor : prev.eyeColor
+                  }))}
+                  className="rounded accent-[#2F2F35]"
+                />
+                Match Corner Eyes to Pattern
+              </label>
+            </div>
 
             {/* Pattern Color */}
             <div className="space-y-2">
               <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600">
-                Pattern Color
+                QR Code & Corner Color
               </label>
               <div className="flex flex-wrap items-center gap-2">
                 {PRESET_COLORS.map((col) => (
                   <button
                     key={col.value}
-                    onClick={() => setConfig((prev) => ({ ...prev, patternColor: col.value }))}
+                    onClick={() => setConfig((prev) => ({ 
+                      ...prev, 
+                      patternColor: col.value,
+                      eyeColor: (prev.isEyeColorLinked ?? true) ? col.value : prev.eyeColor
+                    }))}
                     className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${
                       config.patternColor === col.value ? 'border-stone-900 scale-110 shadow-sm' : 'border-stone-200'
                     }`}
@@ -273,13 +309,51 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle })
                   <input
                     type="color"
                     value={config.patternColor}
-                    onChange={(e) => setConfig((prev) => ({ ...prev, patternColor: e.target.value }))}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setConfig((prev) => ({ 
+                        ...prev, 
+                        patternColor: val,
+                        eyeColor: (prev.isEyeColorLinked ?? true) ? val : prev.eyeColor
+                      }));
+                    }}
                     className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent"
                   />
                   <span className="text-xs font-mono text-stone-600">{config.patternColor}</span>
                 </div>
               </div>
             </div>
+
+            {/* Separate Eye Color if unlinked */}
+            {!(config.isEyeColorLinked ?? true) && (
+              <div className="space-y-2 pt-2 animate-in fade-in duration-200">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600">
+                  Corner Eye Color (Custom)
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  {PRESET_COLORS.map((col) => (
+                    <button
+                      key={col.value}
+                      onClick={() => setConfig((prev) => ({ ...prev, eyeColor: col.value }))}
+                      className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${
+                        config.eyeColor === col.value ? 'border-stone-900 scale-110 shadow-sm' : 'border-stone-200'
+                      }`}
+                      style={{ backgroundColor: col.value }}
+                      title={col.name}
+                    />
+                  ))}
+                  <div className="flex items-center gap-2 ml-2 pl-2 border-l border-stone-200">
+                    <input
+                      type="color"
+                      value={config.eyeColor}
+                      onChange={(e) => setConfig((prev) => ({ ...prev, eyeColor: e.target.value }))}
+                      className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent"
+                    />
+                    <span className="text-xs font-mono text-stone-600">{config.eyeColor}</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Background Color */}
             <div className="space-y-2 pt-2">
@@ -406,6 +480,13 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle })
           {/* Action Buttons */}
           <div className="space-y-3 pt-2">
             <button
+              onClick={handleSaveTemplate}
+              className="w-full py-3 rounded-2xl bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-sm hover:bg-emerald-100 transition-all shadow-sm flex items-center justify-center gap-2"
+            >
+              {savedMessage ? <Check className="w-4 h-4 text-emerald-600" /> : <Bookmark className="w-4 h-4 text-emerald-600" />}
+              {savedMessage ? 'Template Auto-Saved!' : 'Save QR Design Template'}
+            </button>
+            <button
               onClick={handleDownloadPNG}
               className="w-full py-4 rounded-2xl bg-[#2F2F35] text-white font-bold text-sm hover:bg-stone-800 transition-all shadow-md flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]"
             >
@@ -413,11 +494,14 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle })
               Download High-Res PNG
             </button>
             <button
-              onClick={handleDownloadSVG}
+              onClick={() => {
+                const url = window.prompt('Enter export URL:', config.data);
+                if (url) setConfig((prev) => ({ ...prev, data: url }));
+              }}
               className="w-full py-3 rounded-2xl bg-white border border-stone-200 text-stone-800 font-semibold text-sm hover:bg-stone-50 transition-all shadow-sm flex items-center justify-center gap-2"
             >
               <Sparkles className="w-4 h-4 text-[#8ED8FF]" />
-              Download Vector SVG / Print Kit
+              Quick Edit Data URL
             </button>
           </div>
         </div>

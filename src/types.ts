@@ -10,6 +10,7 @@ export interface QRConfig {
   data: string;
   patternColor: string;
   eyeColor: string;
+  isEyeColorLinked?: boolean;
   backgroundColor: string;
   isTransparentBg: boolean;
   patternStyle: PatternStyle;
