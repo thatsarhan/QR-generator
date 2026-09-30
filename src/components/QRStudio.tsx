@@ -3,17 +3,18 @@ import { QRConfig, PatternStyle, EyeStyle, ErrorCorrectionLevel, QRTemplate, Sho
 import { generateQRCodeCanvas } from '../utils/qrHelper';
 import { 
   Download, Sparkles, Globe, Upload, Trash2, Sliders, Palette, 
-  Image as ImageIcon, CheckCircle2, Bookmark, Check, AlertTriangle
+  Image as ImageIcon, CheckCircle2, Bookmark, Check, AlertTriangle, ExternalLink, Code
 } from 'lucide-react';
 
 interface QRStudioProps {
   initialData?: string;
   initialTitle?: string;
   shortLinks: ShortLink[];
+  onAddShortLink: (link: Omit<ShortLink, 'id' | 'scanCount' | 'createdAt' | 'updatedAt'>) => Promise<boolean>;
 }
 
 const PRESET_DOMAINS = [
-  { name: 'rivelabs.ai (Recommended)', value: 'https://rivelabs.ai' },
+  { name: 'rivelabs.ai', value: 'https://rivelabs.ai' },
   { name: 'rivelabs.com', value: 'https://rivelabs.com' },
   { name: 'go.rive.ai', value: 'https://go.rive.ai' },
   { name: 'Custom Local', value: window.location.origin },
@@ -44,11 +45,13 @@ const PRESET_LOGOS = [
   { name: 'Star Sparkle', url: 'https://api.iconify.design/lucide:sparkles.svg?color=%230E3415' },
 ];
 
-export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, shortLinks }) => {
+export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, shortLinks, onAddShortLink }) => {
   const [shortDomain, setShortDomain] = useState<string>('https://rivelabs.ai');
+  const [slug, setSlug] = useState<string>('brochure');
+  const [destinationUrl, setDestinationUrl] = useState<string>('https://rivelabs-my.sharepoint.com/:b:/g/personal/arhan_rive_ai/EQvSampleSharePointDocument');
 
   const [config, setConfig] = useState<QRConfig>(() => {
-    const saved = localStorage.getItem('rive_qr_config_v3');
+    const saved = localStorage.getItem('rive_qr_config_v4');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -63,7 +66,7 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
       id: '1',
       name: initialTitle || 'Summer Brochure QR',
       type: 'url',
-      data: initialData || `https://rivelabs.ai/r/brochure`,
+      data: `https://rivelabs.ai/brochure`,
       encodeDirectly: false,
       patternColor: '#0E3415',
       eyeOuterColor: '#0E3415',
@@ -95,8 +98,15 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
   const [savedMsg, setSavedMsg] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  // Update QR payload whenever shortDomain or slug changes
   useEffect(() => {
-    localStorage.setItem('rive_qr_config_v3', JSON.stringify(config));
+    const cleanSlug = slug.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '').substring(0, 30);
+    const payload = `${shortDomain}/${cleanSlug || 'brochure'}`;
+    setConfig((prev) => ({ ...prev, data: payload }));
+  }, [shortDomain, slug]);
+
+  useEffect(() => {
+    localStorage.setItem('rive_qr_config_v4', JSON.stringify(config));
   }, [config]);
 
   useEffect(() => {
@@ -118,6 +128,11 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
       generateQRCodeCanvas(canvasRef.current, config, exportSize);
     }
   }, [config, exportSize]);
+
+  // Validation rules: must not contain "sharepoint.com" or "http" more than once
+  const hasSharePoint = config.data.includes('sharepoint.com');
+  const httpCount = (config.data.match(/http/g) || []).length;
+  const isInvalidPayload = hasSharePoint || httpCount > 1;
 
   const handleSaveTemplate = () => {
     if (!templateName.trim()) return;
@@ -146,7 +161,7 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
   };
 
   const handleDownloadPNG = () => {
-    if (!canvasRef.current) return;
+    if (isInvalidPayload || !canvasRef.current) return;
     const url = canvasRef.current.toDataURL('image/png');
     const a = document.createElement('a');
     a.href = url;
@@ -176,37 +191,29 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
       <div className="lg:col-span-7 space-y-6">
         <div className="glass-panel rounded-[32px] p-6 md:p-8 border border-stone-200/80 space-y-8 shadow-sm">
           
-          {/* Section 1: Domain & Short Link Selection */}
+          {/* Section 1: Domain & Slug Setup */}
           <div className="space-y-4 bg-gradient-to-br from-white via-stone-50/50 to-emerald-50/20 p-6 rounded-[24px] border border-stone-200/80">
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-display font-bold text-[#0E3415] flex items-center gap-2">
                 <Globe className="w-5 h-5 text-[#0E3415]" />
-                1. Short Domain & Camera Display Name
+                1. Short Domain & Slug
               </h3>
               <span className="text-xs bg-[#0E3415]/10 text-[#0E3415] font-semibold px-2.5 py-0.5 rounded-full">
                 Shows rivelabs.ai
               </span>
             </div>
             <p className="text-xs text-stone-600 leading-relaxed">
-              Phone cameras display the root domain + extension (stripping subdomains like <code className="font-mono text-stone-500">rivelabs-my.sharepoint.com</code> down to <code className="font-mono text-stone-500">sharepoint.com</code>). Select <strong className="text-[#0E3415]">rivelabs.ai</strong> so your camera scans display your exact brand name!
+              Phone cameras display the root domain + extension. By encoding only <code className="font-mono text-[#0E3415]">{shortDomain}/{slug || 'brochure'}</code>, the SharePoint address never appears in the QR code at all.
             </p>
 
-            <div className="space-y-3 pt-2">
+            <div className="space-y-4 pt-2">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
-                  Target Short Domain Prefix
+                  Brand Short Domain
                 </label>
                 <select
                   value={shortDomain}
-                  onChange={(e) => {
-                    const newDom = e.target.value;
-                    setShortDomain(newDom);
-                    // update current data slug path if it starts with a short url
-                    const match = config.data.match(/\/r\/([a-z0-9-_]+)$/i);
-                    if (match && match[1]) {
-                      setConfig((prev) => ({ ...prev, data: `${newDom}/r/${match[1]}` }));
-                    }
-                  }}
+                  onChange={(e) => setShortDomain(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-xl border border-stone-200 text-xs font-mono bg-white focus:outline-none focus:ring-2 focus:ring-[#0E3415]"
                 >
                   {PRESET_DOMAINS.map((dom) => (
@@ -217,53 +224,61 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
                 </select>
               </div>
 
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+                  Required Slug (lowercase, a-z, 0-9, hyphens, max 30 chars)
+                </label>
+                <div className="flex items-center rounded-xl border border-stone-200 overflow-hidden bg-white focus-within:ring-2 focus-within:ring-[#0E3415]">
+                  <span className="pl-3.5 pr-1 text-xs text-stone-400 font-mono">{shortDomain}/</span>
+                  <input
+                    type="text"
+                    maxLength={30}
+                    value={slug}
+                    onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ''))}
+                    placeholder="brochure"
+                    className="w-full py-2.5 pr-4 bg-transparent text-sm focus:outline-none font-mono font-bold text-stone-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
+                  SharePoint Destination URL (for your redirect setup)
+                </label>
+                <input
+                  type="text"
+                  value={destinationUrl}
+                  onChange={(e) => setDestinationUrl(e.target.value)}
+                  placeholder="https://rivelabs-my.sharepoint.com/:b:/g/personal/..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-stone-200 text-xs font-mono bg-white focus:outline-none focus:ring-2 focus:ring-[#0E3415]"
+                />
+              </div>
+
               {shortLinks.length > 0 && (
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
-                    Select from My Short Links
+                    Or Pick from My Short Links
                   </label>
                   <select
                     onChange={(e) => {
                       if (!e.target.value) return;
-                      const fullUrl = `${shortDomain}/r/${e.target.value}`;
-                      setConfig((prev) => ({ ...prev, data: fullUrl, encodeDirectly: false }));
+                      const found = shortLinks.find((l) => l.slug === e.target.value);
+                      if (found) {
+                        setSlug(found.slug);
+                        setDestinationUrl(found.destinationUrl);
+                      }
                     }}
                     className="w-full px-4 py-2.5 rounded-xl border border-stone-200 text-xs font-mono bg-white focus:outline-none focus:ring-2 focus:ring-[#0E3415]"
                   >
-                    <option value="">-- Choose existing short link --</option>
+                    <option value="">-- Load from saved short links --</option>
                     {shortLinks.map((l) => (
                       <option key={l.id} value={l.slug}>
-                        {shortDomain}/r/{l.slug} → {l.title}
+                        {l.slug} → {l.title}
                       </option>
                     ))}
                   </select>
                 </div>
               )}
-
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-stone-600 mb-1">
-                  Encoded QR Payload URL
-                </label>
-                <input
-                  type="text"
-                  value={config.data}
-                  onChange={(e) => setConfig((prev) => ({ ...prev, data: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-2xl border border-stone-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#0E3415] bg-white"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="directEncode"
-                  checked={config.encodeDirectly}
-                  onChange={(e) => setConfig((prev) => ({ ...prev, encodeDirectly: e.target.checked }))}
-                  className="rounded accent-[#0E3415]"
-                />
-                <label htmlFor="directEncode" className="text-xs text-stone-700 cursor-pointer font-medium">
-                  Encode destination directly (skip redirect / no short link)
-                </label>
-              </div>
             </div>
           </div>
 
@@ -600,14 +615,35 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
             <canvas ref={canvasRef} className="w-64 h-64 object-contain mx-auto rounded-xl" />
           </div>
 
+          {/* Encoded Payload & Validation Warning */}
           <div className="space-y-2">
             <div className="text-xs font-semibold text-stone-500 uppercase tracking-wider">Encoded Payload</div>
             <div className="bg-stone-100 p-3 rounded-2xl font-mono text-xs text-stone-800 break-all select-all">
               {config.data}
             </div>
-            <p className="text-[11px] text-emerald-700 font-medium pt-1">
-              📷 Camera scan will cleanly display: <strong className="font-mono underline">{new URL(config.data).hostname}</strong>
-            </p>
+
+            {isInvalidPayload ? (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>Error: The payload contains SharePoint or multiple URLs. The SharePoint URL must never appear in the QR code.</span>
+              </div>
+            ) : (
+              <p className="text-[11px] text-emerald-700 font-medium pt-1">
+                📷 Camera will show <strong>{new URL(shortDomain).hostname}</strong> once the redirect is live on that domain.
+              </p>
+            )}
+          </div>
+
+          {/* Redirect Setup Panel */}
+          <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 text-left space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-[#0E3415]">
+              <Code className="w-4 h-4 text-[#0E3415]" />
+              Redirect Setup (Cloudflare / Host Rule)
+            </div>
+            <div className="text-[11px] font-mono text-stone-600 bg-white p-2.5 rounded-xl border border-stone-200/80 space-y-1">
+              <div><strong>Source:</strong> {config.data}</div>
+              <div className="truncate"><strong>Destination (302):</strong> {destinationUrl}</div>
+            </div>
           </div>
 
           {/* Export Resolution Picker & Download */}
@@ -629,13 +665,29 @@ export const QRStudio: React.FC<QRStudioProps> = ({ initialData, initialTitle, s
               </div>
             </div>
 
-            <button
-              onClick={handleDownloadPNG}
-              className="w-full py-4 rounded-2xl bg-[#0E3415] text-white font-bold text-sm hover:bg-[#154c1f] transition-all shadow-md flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99]"
-            >
-              <Download className="w-4 h-4 text-[#A8F2D3]" />
-              Download High-Res PNG ({exportSize}px)
-            </button>
+            <div className="flex gap-2">
+              <a
+                href={config.data}
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 py-3 rounded-2xl bg-white border border-stone-200 text-stone-800 font-semibold text-xs hover:bg-stone-50 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Test Short Link
+              </a>
+              <button
+                disabled={isInvalidPayload}
+                onClick={handleDownloadPNG}
+                className={`flex-1 py-3 rounded-2xl font-bold text-xs transition-all shadow-md flex items-center justify-center gap-1.5 ${
+                  isInvalidPayload 
+                    ? 'bg-stone-200 text-stone-400 cursor-not-allowed' 
+                    : 'bg-[#0E3415] text-white hover:bg-[#154c1f]'
+                }`}
+              >
+                <Download className="w-3.5 h-3.5 text-[#A8F2D3]" />
+                Download PNG
+              </button>
+            </div>
 
             {/* Template Save Section */}
             <div className="pt-2 border-t border-stone-200 space-y-3">
