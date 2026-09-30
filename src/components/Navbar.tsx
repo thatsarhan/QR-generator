@@ -1,9 +1,9 @@
 import React from 'react';
-import { QrCode, BarChart3, Sparkles } from 'lucide-react';
+import { QrCode, Link2, BarChart3, Globe, Sparkles } from 'lucide-react';
 
 interface NavbarProps {
-  activeTab: 'generator' | 'analytics';
-  setActiveTab: (tab: 'generator' | 'analytics') => void;
+  activeTab: 'generator' | 'links' | 'analytics' | 'deployment';
+  setActiveTab: (tab: 'generator' | 'links' | 'analytics' | 'deployment') => void;
   onNewQR: () => void;
 }
 
@@ -13,15 +13,15 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onNewQR
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Zone 1: Brand */}
         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('generator')}>
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#F7A8C9] to-[#8ED8FF] flex items-center justify-center shadow-sm text-stone-900 font-bold">
-            <QrCode className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-2xl bg-[#0E3415] flex items-center justify-center shadow-sm text-white font-bold">
+            <QrCode className="w-5 h-5 text-[#A8F2D3]" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="font-display font-bold text-lg tracking-tight text-[#2F2F35]">Rive QR Studio</span>
-              <span className="w-2 h-2 rounded-full bg-[#F7A8C9]"></span>
+              <span className="font-display font-bold text-lg tracking-tight text-[#0E3415]">Rive QR Studio</span>
+              <span className="px-2 py-0.5 rounded-full bg-[#0E3415]/10 text-[#0E3415] font-mono text-[10px] font-bold">go.rive.ai</span>
             </div>
-            <p className="text-[11px] text-stone-500 font-medium">Custom QR & SharePoint Masking</p>
+            <p className="text-[11px] text-stone-500 font-medium">Branded QR & 302 Redirect Service</p>
           </div>
         </div>
 
@@ -29,25 +29,47 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onNewQR
         <nav className="hidden md:flex items-center gap-1 bg-stone-100/80 p-1 rounded-full border border-stone-200/60 text-sm font-medium">
           <button
             onClick={() => setActiveTab('generator')}
-            className={`flex items-center gap-2 px-5 py-2 rounded-full transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all whitespace-nowrap ${
               activeTab === 'generator'
-                ? 'bg-white text-[#2F2F35] shadow-sm font-semibold'
-                : 'text-stone-600 hover:text-[#2F2F35]'
+                ? 'bg-[#0E3415] text-white shadow-sm font-semibold'
+                : 'text-stone-600 hover:text-[#0E3415]'
             }`}
           >
-            <QrCode className="w-4 h-4 text-[#F7A8C9]" />
-            QR Studio & Custom URL
+            <QrCode className="w-4 h-4 text-[#A8F2D3]" />
+            QR Studio
+          </button>
+          <button
+            onClick={() => setActiveTab('links')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all whitespace-nowrap ${
+              activeTab === 'links'
+                ? 'bg-[#0E3415] text-white shadow-sm font-semibold'
+                : 'text-stone-600 hover:text-[#0E3415]'
+            }`}
+          >
+            <Link2 className="w-4 h-4 text-[#A8F2D3]" />
+            My Short Links
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`flex items-center gap-2 px-5 py-2 rounded-full transition-all whitespace-nowrap ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all whitespace-nowrap ${
               activeTab === 'analytics'
-                ? 'bg-white text-[#2F2F35] shadow-sm font-semibold'
-                : 'text-stone-600 hover:text-[#2F2F35]'
+                ? 'bg-[#0E3415] text-white shadow-sm font-semibold'
+                : 'text-stone-600 hover:text-[#0E3415]'
             }`}
           >
-            <BarChart3 className="w-4 h-4 text-[#FFC6A5]" />
-            Scan Analytics
+            <BarChart3 className="w-4 h-4 text-[#A8F2D3]" />
+            Analytics
+          </button>
+          <button
+            onClick={() => setActiveTab('deployment')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all whitespace-nowrap ${
+              activeTab === 'deployment'
+                ? 'bg-[#0E3415] text-white shadow-sm font-semibold'
+                : 'text-stone-600 hover:text-[#0E3415]'
+            }`}
+          >
+            <Globe className="w-4 h-4 text-[#A8F2D3]" />
+            go.rive.ai Setup
           </button>
         </nav>
 
@@ -55,10 +77,10 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onNewQR
         <div className="flex items-center gap-3">
           <button
             onClick={onNewQR}
-            className="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-[#2F2F35] rounded-full hover:bg-stone-800 transition-all shadow-sm whitespace-nowrap hover:scale-[1.02] active:scale-[0.98]"
+            className="flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-white bg-[#0E3415] rounded-full hover:bg-stone-800 transition-all shadow-sm whitespace-nowrap hover:scale-[1.02] active:scale-[0.98]"
           >
-            <Sparkles className="w-3.5 h-3.5 text-[#F7A8C9]" />
-            New QR Code
+            <Sparkles className="w-3.5 h-3.5 text-[#A8F2D3]" />
+            Create QR Code
           </button>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { QRConfig } from '../types';
 export async function generateQRCodeCanvas(
   canvas: HTMLCanvasElement,
   config: QRConfig,
-  size: number = 400
+  size: number = 500
 ): Promise<void> {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
@@ -12,11 +12,22 @@ export async function generateQRCodeCanvas(
   canvas.width = size;
   canvas.height = size;
 
+  // Determine error correction level (force H if logo is present)
+  let ecLevel = config.errorCorrectionLevel || 'M';
+  if (config.logoUrl) {
+    ecLevel = 'H';
+  }
+
   // Generate QR matrix using qrcode
-  const qrData = config.data || 'https://rive.ai';
-  const qrObject = QRCode.create(qrData, {
-    errorCorrectionLevel: 'H', // High error correction needed for logos
-  });
+  const qrData = config.data || 'https://go.rive.ai/brochure';
+  let qrObject;
+  try {
+    qrObject = QRCode.create(qrData, {
+      errorCorrectionLevel: ecLevel,
+    });
+  } catch (e) {
+    qrObject = QRCode.create('https://go.rive.ai', { errorCorrectionLevel: 'M' });
+  }
 
   const qrModule = qrObject.modules;
   const moduleCount = qrModule.size;
@@ -32,21 +43,18 @@ export async function generateQRCodeCanvas(
 
   // Helper to check if a module is part of the 3 finder patterns (eyes)
   const isFinderPattern = (row: number, col: number) => {
-    // Top-left: (0,0) to (6,6)
     if (row <= 6 && col <= 6) return true;
-    // Top-right: (0, moduleCount-7) to (6, moduleCount-1)
     if (row <= 6 && col >= moduleCount - 7) return true;
-    // Bottom-left: (moduleCount-7, 0) to (moduleCount-1, 6)
     if (row >= moduleCount - 7 && col <= 6) return true;
     return false;
   };
 
-  // 2. Draw standard modules (dots/squares/rounded)
-  ctx.fillStyle = config.patternColor || '#2F2F35';
+  // 2. Draw standard modules (dots/squares/rounded/extra-rounded/classy/diamond)
+  ctx.fillStyle = config.patternColor || '#0E3415';
 
   for (let row = 0; row < moduleCount; row++) {
     for (let col = 0; col < moduleCount; col++) {
-      if (isFinderPattern(row, col)) continue; // Skip finder patterns, draw them separately
+      if (isFinderPattern(row, col)) continue;
 
       if (qrModule.get(row, col)) {
         const x = col * cellSize;
@@ -65,7 +73,12 @@ export async function generateQRCodeCanvas(
         } else if (config.patternStyle === 'rounded') {
           const radius = cellSize * 0.35;
           ctx.beginPath();
-          ctx.roundRect(x + cellSize * 0.1, y + cellSize * 0.1, cellSize * 0.8, cellSize * 0.8, radius);
+          ctx.roundRect(x + cellSize * 0.08, y + cellSize * 0.08, cellSize * 0.84, cellSize * 0.84, radius);
+          ctx.fill();
+        } else if (config.patternStyle === 'extra-rounded') {
+          const radius = cellSize * 0.5;
+          ctx.beginPath();
+          ctx.roundRect(x + cellSize * 0.05, y + cellSize * 0.05, cellSize * 0.9, cellSize * 0.9, radius);
           ctx.fill();
         } else if (config.patternStyle === 'diamond') {
           ctx.beginPath();
@@ -77,7 +90,7 @@ export async function generateQRCodeCanvas(
           ctx.fill();
         } else if (config.patternStyle === 'classy') {
           ctx.beginPath();
-          ctx.roundRect(x + cellSize * 0.05, y + cellSize * 0.05, cellSize * 0.9, cellSize * 0.9, [cellSize * 0.3, 0, cellSize * 0.3, 0]);
+          ctx.roundRect(x + cellSize * 0.05, y + cellSize * 0.05, cellSize * 0.9, cellSize * 0.9, [cellSize * 0.35, 0, cellSize * 0.35, 0]);
           ctx.fill();
         } else {
           // Default square
@@ -87,29 +100,33 @@ export async function generateQRCodeCanvas(
     }
   }
 
-  // 3. Draw Finder Patterns (Eyes) at (0,0), (0, moduleCount-7), (moduleCount-7, 0)
+  // 3. Draw Finder Patterns (Eyes) with separate outer frame and inner dot colors
   const drawEye = (startRow: number, startCol: number) => {
     const x = startCol * cellSize;
     const y = startRow * cellSize;
     const eyeSize = 7 * cellSize;
 
+    const outerColor = config.isEyesLinked ? (config.patternColor || '#0E3415') : (config.eyeOuterColor || config.patternColor || '#0E3415');
+    const innerColor = config.isEyesLinked ? (config.patternColor || '#0E3415') : (config.eyeInnerColor || config.patternColor || '#0E3415');
+
     ctx.save();
-    ctx.fillStyle = config.eyeColor || config.patternColor || '#2F2F35';
 
     if (config.eyeStyle === 'circle') {
       // Outer ring
+      ctx.fillStyle = outerColor;
       ctx.beginPath();
       ctx.arc(x + eyeSize / 2, y + eyeSize / 2, eyeSize / 2, 0, Math.PI * 2);
       ctx.arc(x + eyeSize / 2, y + eyeSize / 2, eyeSize / 2 - cellSize * 1.5, 0, Math.PI * 2, true);
-      ctx.fillStyle = config.eyeColor;
       ctx.fill();
 
       // Inner dot
+      ctx.fillStyle = innerColor;
       ctx.beginPath();
       ctx.arc(x + eyeSize / 2, y + eyeSize / 2, cellSize * 1.5, 0, Math.PI * 2);
       ctx.fill();
     } else if (config.eyeStyle === 'rounded') {
-      // Outer rounded box matching the reference image
+      // Outer rounded frame
+      ctx.fillStyle = outerColor;
       const radius = cellSize * 2.2;
       ctx.beginPath();
       ctx.roundRect(x, y, eyeSize, eyeSize, radius);
@@ -120,25 +137,13 @@ export async function generateQRCodeCanvas(
 
       ctx.save();
       // Inner rounded square dot
-      ctx.fillStyle = config.eyeColor;
+      ctx.fillStyle = innerColor;
       ctx.beginPath();
       ctx.roundRect(x + cellSize * 2, y + cellSize * 2, cellSize * 3, cellSize * 3, cellSize * 1.2);
       ctx.fill();
-    } else if (config.eyeStyle === 'leafy') {
-      ctx.beginPath();
-      ctx.roundRect(x, y, eyeSize, eyeSize, [cellSize * 2, cellSize * 0.5, cellSize * 2, cellSize * 0.5]);
-      ctx.rect(x + cellSize * 1.5, y + cellSize * 1.5, eyeSize - cellSize * 3, eyeSize - cellSize * 3);
-      ctx.clip('evenodd');
-      ctx.fillRect(x, y, eyeSize, eyeSize);
-      ctx.restore();
-
-      ctx.save();
-      ctx.fillStyle = config.eyeColor;
-      ctx.beginPath();
-      ctx.roundRect(x + cellSize * 2, y + cellSize * 2, cellSize * 3, cellSize * 3, cellSize * 1);
-      ctx.fill();
     } else {
       // Default square eye
+      ctx.fillStyle = outerColor;
       ctx.beginPath();
       ctx.rect(x, y, eyeSize, eyeSize);
       ctx.rect(x + cellSize * 1.5, y + cellSize * 1.5, eyeSize - cellSize * 3, eyeSize - cellSize * 3);
@@ -146,8 +151,8 @@ export async function generateQRCodeCanvas(
       ctx.fillRect(x, y, eyeSize, eyeSize);
       ctx.restore();
 
-      // Inner box
-      ctx.fillStyle = config.eyeColor;
+      ctx.save();
+      ctx.fillStyle = innerColor;
       ctx.fillRect(x + cellSize * 2, y + cellSize * 2, cellSize * 3, cellSize * 3);
     }
     ctx.restore();
@@ -157,13 +162,13 @@ export async function generateQRCodeCanvas(
   drawEye(0, moduleCount - 7);
   drawEye(moduleCount - 7, 0);
 
-  // 4. Draw Logo in Center if provided
+  // 4. Draw Logo in Center if provided (size capped at 25-30% with white plate option)
   if (config.logoUrl) {
     await new Promise<void>((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
-        const logoFraction = (config.logoSize || 25) / 100;
+        const logoFraction = Math.min(Math.max(config.logoSize || 22, 15), 28) / 100;
         const logoSizePx = size * logoFraction;
         const logoX = (size - logoSizePx) / 2;
         const logoY = (size - logoSizePx) / 2;
@@ -171,22 +176,23 @@ export async function generateQRCodeCanvas(
         ctx.save();
 
         if (config.logoBg) {
+          // White plate behind logo
           ctx.fillStyle = config.backgroundColor && !config.isTransparentBg ? config.backgroundColor : '#FFFFFF';
           if (config.logoRound) {
             ctx.beginPath();
-            ctx.arc(size / 2, size / 2, logoSizePx / 2 + 6, 0, Math.PI * 2);
+            ctx.arc(size / 2, size / 2, logoSizePx / 2 + 8, 0, Math.PI * 2);
             ctx.fill();
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
-            ctx.shadowBlur = 10;
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.12)';
+            ctx.shadowBlur = 12;
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
             ctx.lineWidth = 2;
             ctx.stroke();
           } else {
             ctx.beginPath();
-            ctx.roundRect(logoX - 6, logoY - 6, logoSizePx + 12, logoSizePx + 12, 12);
+            ctx.roundRect(logoX - 8, logoY - 8, logoSizePx + 16, logoSizePx + 16, 14);
             ctx.fill();
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
-            ctx.shadowBlur = 10;
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.12)';
+            ctx.shadowBlur = 12;
             ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
             ctx.lineWidth = 2;
             ctx.stroke();
@@ -198,7 +204,7 @@ export async function generateQRCodeCanvas(
         if (config.logoRound && !config.logoBg) {
           ctx.arc(size / 2, size / 2, logoSizePx / 2, 0, Math.PI * 2);
         } else {
-          ctx.roundRect(logoX, logoY, logoSizePx, logoSizePx, config.logoBg ? 8 : 4);
+          ctx.roundRect(logoX, logoY, logoSizePx, logoSizePx, 8);
         }
         ctx.clip();
 
@@ -207,7 +213,7 @@ export async function generateQRCodeCanvas(
         resolve();
       };
       img.onerror = () => {
-        resolve(); // Continue even if logo fails
+        resolve();
       };
       img.src = config.logoUrl!;
     });

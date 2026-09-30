@@ -21,11 +21,12 @@ if (!fs.existsSync(DATA_FILE)) {
   const initialLinks = [
     {
       id: '1',
-      slug: 'catalog-2026',
-      title: '2026 Summer Collection PDF',
-      destinationUrl: 'https://mycompany-my.sharepoint.com/:b:/g/personal/arhan_rive_ai/EQvSampleSharePointDocument',
-      clicks: 14,
+      slug: 'brochure',
+      title: '2026 Summer Collection SharePoint PDF',
+      destinationUrl: 'https://rivelabs-my.sharepoint.com/:b:/g/personal/arhan_rive_ai/EQvSampleSharePointDocument',
+      scanCount: 14,
       createdAt: Date.now(),
+      updatedAt: Date.now(),
     }
   ];
   fs.writeFileSync(DATA_FILE, JSON.stringify(initialLinks, null, 2));
@@ -47,13 +48,24 @@ app.post('/api/links', (req, res) => {
     const { title, slug, destinationUrl } = req.body;
     const links = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
 
+    const cleanSlug = (slug || Math.random().toString(36).substring(2, 8))
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]/g, '-');
+
+    // Check unique slug
+    if (links.some((l: any) => l.slug === cleanSlug)) {
+      return res.status(400).json({ error: 'Slug must be unique. This slug is already taken.' });
+    }
+
     const newLink = {
       id: Math.random().toString(36).substring(2, 9),
-      slug: slug || Math.random().toString(36).substring(2, 8),
-      title: title || 'Untitled Document',
+      slug: cleanSlug,
+      title: title || 'Untitled SharePoint Link',
       destinationUrl,
-      clicks: 0,
+      scanCount: 0,
       createdAt: Date.now(),
+      updatedAt: Date.now(),
     };
 
     links.unshift(newLink);
@@ -61,6 +73,29 @@ app.post('/api/links', (req, res) => {
     res.json(newLink);
   } catch (err) {
     res.status(500).json({ error: 'Failed to create short link' });
+  }
+});
+
+// API: Update short link destination
+app.put('/api/links/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, destinationUrl } = req.body;
+    const links = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    const link = links.find((l: any) => l.id === id);
+
+    if (!link) {
+      return res.status(404).json({ error: 'Link not found' });
+    }
+
+    if (title) link.title = title;
+    if (destinationUrl) link.destinationUrl = destinationUrl;
+    link.updatedAt = Date.now();
+
+    fs.writeFileSync(DATA_FILE, JSON.stringify(links, null, 2));
+    res.json(link);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update short link' });
   }
 });
 
@@ -77,7 +112,7 @@ app.delete('/api/links/:id', (req, res) => {
   }
 });
 
-// REDIRECT ROUTE: /r/:slug (Masks SharePoint with clean domain)
+// REDIRECT ROUTE: /r/:slug (HTTP 302 redirect to destinationUrl with scan counter increment)
 app.get('/r/:slug', (req, res) => {
   const { slug } = req.params;
   try {
@@ -85,99 +120,24 @@ app.get('/r/:slug', (req, res) => {
     const link = links.find((l: any) => l.slug === slug);
 
     if (link) {
-      // Increment clicks
-      link.clicks = (link.clicks || 0) + 1;
+      link.scanCount = (link.scanCount || 0) + 1;
       fs.writeFileSync(DATA_FILE, JSON.stringify(links, null, 2));
 
-      // Return a gorgeous Daely/Rive branded redirect splash page that instantly forwards to SharePoint
-      res.send(`<!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Redirecting to ${link.title} — Rive AI</title>
-        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-        <style>
-          body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background: #FFF9F6;
-            color: #2F2F35;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-          }
-          .card {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.8);
-            padding: 40px;
-            border-radius: 32px;
-            max-width: 480px;
-            width: 90%;
-            text-align: center;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.06);
-          }
-          .logo {
-            width: 56px;
-            height: 56px;
-            border-radius: 20px;
-            background: linear-gradient(135deg, #F7A8C9, #8ED8FF);
-            margin: 0 auto 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Syne', sans-serif;
-            font-weight: 800;
-            font-size: 20px;
-            color: #2F2F35;
-          }
-          h1 {
-            font-family: 'Syne', sans-serif;
-            font-size: 24px;
-            margin: 0 0 12px;
-            color: #2F2F35;
-          }
-          p {
-            color: #6b7280;
-            font-size: 14px;
-            line-height: 1.6;
-            margin: 0 0 24px;
-          }
-          .btn {
-            display: inline-block;
-            background: #2F2F35;
-            color: white;
-            padding: 14px 28px;
-            border-radius: 9999px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 14px;
-            transition: all 0.2s;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-          }
-          .btn:hover { background: #1f1f23; }
-        </style>
-        <meta http-equiv="refresh" content="0.8;url=${link.destinationUrl}">
-      </head>
-      <body>
-        <div class="card">
-          <div class="logo">R</div>
-          <h1>Opening ${link.title}</h1>
-          <p>Redirecting securely from <strong>rive.ai</strong> to SharePoint document...</p>
-          <a href="${link.destinationUrl}" class="btn">Click here if not redirected</a>
-        </div>
-      </body>
-      </html>`);
+      // HTTP 302 redirect to destinationUrl (e.g. SharePoint)
+      res.redirect(302, link.destinationUrl);
     } else {
       res.status(404).send(`<!DOCTYPE html>
       <html>
-      <head><title>Link Not Found</title></head>
-      <body style="font-family:sans-serif; text-align:center; padding:50px;">
-        <h2>Short link not found</h2>
-        <p>The requested branded short link does not exist or has expired.</p>
+      <head>
+        <title>Link Not Found — Rive QR Studio</title>
+        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&family=Syne:wght@700&display=swap" rel="stylesheet">
+      </head>
+      <body style="font-family:'Plus Jakarta Sans',sans-serif; background:#FFF9F6; color:#0E3415; display:flex; align-items:center; justify-content:center; height:100vh; margin:0;">
+        <div style="background:white; padding:40px; border-radius:24px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.05); max-width:400px; border:1px solid #e5e7eb;">
+          <h2 style="font-family:'Syne',sans-serif; margin-top:0; color:#0E3415;">Link Not Found</h2>
+          <p style="color:#6b7280; font-size:14px;">The short link <strong>go.rive.ai/r/${slug}</strong> does not exist or has been removed.</p>
+          <a href="/" style="display:inline-block; background:#0E3415; color:white; padding:12px 24px; border-radius:99px; text-decoration:none; font-weight:600; font-size:14px; margin-top:16px;">Create Rive QR Code</a>
+        </div>
       </body>
       </html>`);
     }
@@ -202,5 +162,5 @@ if (process.env.NODE_ENV !== 'production') {
 
 const PORT = 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Rive QR Studio server running on port ${PORT}`);
 });
